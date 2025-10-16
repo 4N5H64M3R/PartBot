@@ -27,7 +27,7 @@ export function renderMove(logEntry: Log, game: Scrabble): [ReactElement, { name
 					{words.length === 1 && !logEntry.ctx.points.bingo
 						? words[0][0]
 						: words.map(([word, points]) => `${word} (${points})`).list(game.$T)}{' '}
-					for {logEntry.ctx.points.total} points!
+					for {pluralize(logEntry.ctx.points.total, 'point', 'points')}!
 					{logEntry.ctx.points.bingo ? ' BINGO!' : null}
 				</LogEntry>,
 				opts,
@@ -35,7 +35,7 @@ export function renderMove(logEntry: Log, game: Scrabble): [ReactElement, { name
 		case 'exchange':
 			return [
 				<LogEntry game={game}>
-					<Username name={playerName} clickable /> exchanged {logEntry.ctx.tiles.length} tiles.
+					<Username name={playerName} clickable /> exchanged {pluralize(logEntry.ctx.tiles.length, 'tile', 'tiles')}.
 				</LogEntry>,
 				opts,
 			];
