@@ -949,7 +949,8 @@
 				"fire": 2,
 				"water": 3
 			},
-			"art": "shuckle.png"
+			"art": "shuckle.png",
+			"attr": "audiino"
 		},
 		"sneasel": {
 			"id": "sneasel",
