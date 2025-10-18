@@ -329,7 +329,7 @@ export const command: PSCommand[] = Object.entries(Games).map(([_gameId, Game]):
 			}),
 			forfeit: {
 				name: 'forfeit',
-				aliases: ['f', 'ff', 'leave', 'l'],
+				aliases: ['f', 'ff', 'leave', 'l','resign','flipboard'],
 				help: 'Forfeits a game, or leaves one in signups.',
 				syntax: 'CMD [#id]',
 				async run({ message, arg, $T }) {
