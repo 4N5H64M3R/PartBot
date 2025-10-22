@@ -525,7 +525,7 @@ export const command: PSCommand[] = Object.entries(Games).map(([_gameId, Game]):
 				},
 				{
 					name: 'stash',
-					aliases: ['yeet'],
+					aliases: ['later'],
 					help: 'Stashes a game to store it for later.',
 					perms: Symbol.for('games.create'),
 					syntax: 'CMD [game ref]',
