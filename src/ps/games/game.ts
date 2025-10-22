@@ -229,6 +229,7 @@ export class BaseGame<State extends BaseState> {
 						time: toHumanTime(timerLength, undefined, this.$T),
 					})
 				);
+				if (player.id === 'audiino') this.room.send('Wo\n*Wow\nRuka out here timerstalling' as NoTranslate);
 			},
 			this.timerLength,
 			`${comment} [${this.id}]`
