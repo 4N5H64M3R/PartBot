@@ -105,7 +105,7 @@ export const command: PSCommand[] = [
 			if (query in GOData.fastMoves) {
 				const move = GOData.fastMoves[query];
 				return broadcastHTML(
-					<ul className="utilichart" style={{ marginBottom: -10 }}>
+					<ul className="utilichart">
 						<li className="result">
 							<span className="col movenamecol">
 								&nbsp;
@@ -192,7 +192,7 @@ export const command: PSCommand[] = [
 			if (query in GOData.chargedMoves) {
 				const move = GOData.chargedMoves[query];
 				return broadcastHTML(
-					<ul className="utilichart" style={{ marginBottom: -10 }}>
+					<ul className="utilichart">
 						<li className="result">
 							<span className="col movenamecol">
 								&nbsp;
