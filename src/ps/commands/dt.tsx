@@ -101,6 +101,93 @@ export const command: PSCommand[] = [
 					</>
 				);
 			}
+			if (query in GOData.chargedMoves) {
+				const move = GOData.chargedMoves[query];
+				return broadcastHTML(
+					<>
+						<ul className="utilichart" style={{ marginBottom: -10 }}>
+							<li className="result">
+								<span className="col movenamecol">
+									&nbsp;
+									<a
+										href={`https://gamepress.gg/pokemongo/pokemon-move/${move.name.replace(/ /g, '-').toLowerCase()}`}
+										target="_blank"
+									>
+										{move.name}
+									</a>
+								</span>
+								<span className="col typecol">
+									<img
+										src={`https://play.pokemonshowdown.com/sprites/types/${move.type}.png`}
+										alt={move.type}
+										width="32"
+										height="14"
+									/>
+									<img src={`https://play.pokemonshowdown.com/sprites/categories/Physical.png`} alt="Charged" width="32" height="14" />
+								</span>
+							</li>
+							<li className="result">
+								<span className="col widelabelcol" style={{ marginTop: 10, color: '#999' }}>
+									PvP
+								</span>
+								<span className="col widelabelcol">
+									<em>Energy</em>
+									<br />
+									{move.pvp.energy}
+								</span>
+								<span className="col widelabelcol">
+									<em>Power</em>
+									<br />
+									{move.pvp.power}
+								</span>
+								<span className="col labelcol">
+									<em>DPE</em>
+									<br />
+									{move.pvp.dpe}
+								</span>
+								<span className="col movedesccol">&nbsp;&nbsp;{move.desc}</span>
+							</li>
+							<li className="result">
+								<span className="col widelabelcol" style={{ marginTop: 10, color: '#999' }}>
+									PvE
+								</span>
+								<span className="col widelabelcol">
+									<em>Energy</em>
+									<br />
+									{move.pve.energy}
+								</span>
+								<span className="col widelabelcol">
+									<em>Power</em>
+									<br />
+									{move.pve.power}
+								</span>
+								<span className="col labelcol">
+									<em>Time</em>
+									<br />
+									{move.pve.duration}s
+								</span>
+								<span className="col labelcol">
+									<em>DPE</em>
+									<br />
+									{move.pve.dpe}
+								</span>
+								<span className="col widelabelcol">
+									<em>
+										D<sup>2</sup>/ES
+									</em>
+									<br />
+									{move.pve.d2pes}
+								</span>
+								<span className="col widelabelcol">
+									<em>Delay</em>
+									<br />
+									{move.pve.delay}s
+								</span>
+							</li>
+						</ul>
+					</>
+				);
+			}
 
 			throw new ChatError($T('ENTRY_NOT_FOUND'));
 		},
