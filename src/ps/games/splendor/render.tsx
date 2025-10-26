@@ -112,20 +112,21 @@ function getCardStyles(imageSrc: string | null): CSSProperties {
 	};
 }
 
-function TypeToken({ type, square }: { type: TOKEN_TYPE; square?: boolean | undefined }): ReactElement {
+function TypeToken({ type, rectangle }: { type: TOKEN_TYPE; rectangle?: boolean | undefined }): ReactElement {
 	const data = metadata.types[type];
 
-	const imgUrl = square && type === TOKEN_TYPE.DRAGON ? getArtUrl('other', 'question-mark.png') : getArtUrl('type', data.art);
-	const size = square ? '94%' : '77%';
+	const imgUrl = rectangle && type === TOKEN_TYPE.DRAGON ? getArtUrl('other', 'question-mark.png') : getArtUrl('type', data.art);
+	const size = rectangle ? '94%' : '77%';
+
+	const dimensions = rectangle ? { height: 120, width: 96 } : { height: 108, width: 108 };
 
 	return (
 		<div
 			style={{
-				height: 108,
-				width: 108,
+				...dimensions,
 				margin: 8,
 				marginBottom: -12,
-				borderRadius: square ? 12 : 99,
+				borderRadius: rectangle ? 12 : 99,
 				display: 'inline-block',
 				background: `no-repeat center/${size} ${imgUrl}, ${TOKEN_COLOURS[type]}`,
 			}}
@@ -133,10 +134,18 @@ function TypeToken({ type, square }: { type: TOKEN_TYPE; square?: boolean | unde
 	);
 }
 
-function TypeTokenCount({ type, count, square }: { type: TOKEN_TYPE; count: number; square?: boolean | undefined }): ReactElement {
+function TypeTokenCount({
+	type,
+	count,
+	rectangle,
+}: {
+	type: TOKEN_TYPE;
+	count: number;
+	rectangle?: boolean | undefined;
+}): ReactElement {
 	return (
 		<div style={{ display: 'inline-block', margin: '0 12px 0 0' }}>
-			<TypeToken type={type} square={square} />
+			<TypeToken type={type} rectangle={rectangle} />
 			<span style={{ position: 'relative', bottom: 18, color: count === 0 ? '#aaa' : undefined, fontSize: 72 }}>
 				×<b>{count}</b>
 			</span>
@@ -162,7 +171,7 @@ export function TrainerCard({ data }: { data: Trainer }): ReactElement {
 			}}
 		>
 			<div style={{ background: '#1119', borderBottom: '1px solid black', textAlign: 'right' }}>
-				<strong style={{ fontSize: '36px', marginRight: 12, position: 'relative', top: 4 }}>{data.points}</strong>
+				<strong style={{ fontSize: '32px', marginRight: 12, position: 'relative', top: 4 }}>{data.points}</strong>
 				<div
 					style={{
 						position: 'absolute',
@@ -176,7 +185,7 @@ export function TrainerCard({ data }: { data: Trainer }): ReactElement {
 				>
 					{(Object.entries(data.types) as [TOKEN_TYPE, number][]).map(([tokenType, cost]) => (
 						<div>
-							<TypeTokenCount type={tokenType} count={cost} square />
+							<TypeTokenCount type={tokenType} count={cost} rectangle />
 						</div>
 					))}
 				</div>
@@ -622,7 +631,7 @@ export function ActivePlayer({
 						<details open style={{ display: 'inline-block', verticalAlign: 'top' }}>
 							<summary style={{ ...RESOURCE_STYLES, cursor: 'pointer' }}>
 								{cards.map(([tokenType, { length: count }]) => (
-									<TypeTokenCount type={tokenType} count={count} square />
+									<TypeTokenCount type={tokenType} count={count} rectangle />
 								))}
 							</summary>
 							<div style={{ zoom: '75%', display: 'inline' }}>
@@ -684,7 +693,7 @@ export function PlayerSummary({ data }: { data: PlayerData }): ReactElement {
 
 	const cardsEl = AllTokenTypes.filterMap(type => {
 		const count = cards[type]?.length;
-		if (count) return <TypeTokenCount type={type} count={count} square />;
+		if (count) return <TypeTokenCount type={type} count={count} rectangle />;
 	});
 	const tokensEl = AllTokenTypes.filterMap(type => {
 		const count = data.tokens[type];
