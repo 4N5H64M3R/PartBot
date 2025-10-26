@@ -182,6 +182,7 @@ export const command: PSCommand[] = [
 		name: 'splendorart',
 		help: 'Displays the current user-made art used in Splendor!',
 		syntax: 'CMD',
+		flags: { allowPMs: true },
 		extendedAliases: { 'splendor art': ['splendorart'] },
 		categories: ['game'],
 		async run({ broadcastHTML }) {
