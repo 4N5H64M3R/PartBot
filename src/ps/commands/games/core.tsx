@@ -2,7 +2,6 @@ import { PSGames } from '@/cache';
 import { gameCache } from '@/cache/games';
 import { Games } from '@/ps/games';
 import { renderBackups, renderMenu } from '@/ps/games/menus';
-import { parseMod } from '@/ps/games/mods';
 import { generateId } from '@/ps/games/utils';
 import { ChatError } from '@/utils/chatError';
 import { fromHumanTime, toHumanTime } from '@/utils/humanTime';
@@ -452,11 +451,9 @@ export const command: PSCommand[] = Object.entries(Games).map(([_gameId, Game]):
 					syntax: 'CMD [game ref], [mod]',
 					async run({ message, arg, $T }) {
 						const { game, ctx } = getGame(arg, { action: 'mod', user: message.author.id }, { room: message.target, $T });
-						if (!game.moddable?.() || !game.applyMod) throw new ChatError($T('GAME.CANNOT_MOD'));
-						const mod = parseMod(ctx, Game.meta.mods!.list, Game.meta.mods!.data);
-						if (!mod) throw new ChatError($T('GAME.MOD_NOT_FOUND', { mod: ctx }));
-						const applied = game.applyMod(mod);
+						const applied = game.tryApplyMod(ctx);
 						if (applied.success) message.reply(applied.data);
+						else throw new ChatError(applied.error);
 					},
 				},
 				{

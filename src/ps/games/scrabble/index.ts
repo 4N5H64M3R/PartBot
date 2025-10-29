@@ -15,6 +15,7 @@ import {
 import { ScrabbleModData } from '@/ps/games/scrabble/mods';
 import { render, renderMove } from '@/ps/games/scrabble/render';
 import { checkUGO, createGrid } from '@/ps/games/utils';
+import { ChatError } from '@/utils/chatError';
 import { type Point, coincident, flipPoint, multiStepPoint, rangePoints, stepPoint } from '@/utils/grid';
 
 import type { ToTranslate, TranslatedText } from '@/i18n/types';
@@ -40,6 +41,11 @@ export class Scrabble extends BaseGame<State> {
 
 	constructor(ctx: BaseContext) {
 		super(ctx);
+		if (ctx.args.length) {
+			const applied = this.tryApplyMod(ctx.args.join(' '));
+			if (!applied.success) throw new ChatError(applied.error);
+			this.room.send(applied.data);
+		}
 		super.persist(ctx);
 	}
 

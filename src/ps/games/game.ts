@@ -6,6 +6,7 @@ import { uploadGame } from '@/database/games';
 import { BOT_LOG_CHANNEL } from '@/discord/constants/servers/boardgames';
 import { getChannel } from '@/discord/loaders/channels';
 import { IS_ENABLED } from '@/enabled';
+import { parseMod } from '@/ps/games/mods';
 import { Small, renderCloseSignups, renderSignups } from '@/ps/games/render';
 import { checkUGO } from '@/ps/games/utils';
 import { ChatError } from '@/utils/chatError';
@@ -641,6 +642,13 @@ export class BaseGame<State extends BaseState> {
 		// Delete from cache
 		delete PSGames[this.meta.id]![this.id];
 		gameCache.delete(this.id);
+	}
+
+	tryApplyMod(ctx: string): ActionResponse<TranslatedText> {
+		if (!this.moddable?.() || !this.applyMod) return { success: false, error: this.$T('GAME.CANNOT_MOD') };
+		const mod = parseMod(ctx, this.meta.mods!.list, this.meta.mods!.data);
+		if (!mod) return { success: false, error: this.$T('GAME.MOD_NOT_FOUND', { mod: ctx }) };
+		return this.applyMod(mod);
 	}
 }
 
