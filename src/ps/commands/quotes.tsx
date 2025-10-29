@@ -1,5 +1,4 @@
 import { PSQuoteRoomPrefs } from '@/cache';
-import { prefix } from '@/config/ps';
 import { addQuote, getAllQuotes } from '@/database/quotes';
 import { MAX_CHAT_HTML_LENGTH, MAX_PAGE_HTML_LENGTH } from '@/ps/constants';
 import { ChatError } from '@/utils/chatError';
@@ -16,14 +15,6 @@ import type { PSMessage } from '@/types/ps';
 import type { CSSProperties, ReactElement, ReactNode } from 'react';
 
 type QuoteCollection = [index: number, quote: string][];
-
-function Entry({ name, children }: { name: string; children: ReactNode }) {
-	return (
-		<li>
-			<b>{name}</b>: {children}
-		</li>
-	);
-}
 
 const ranks = ['★', '☆', '^', '⛵', 'ᗢ', '+', '%', '§', '@', '*', '#', '&', '~', '$', '-'].join('');
 const chatRegEx = new RegExp(`^(\\[(?:\\d{2}:){1,2}\\d{2}] )?([${ranks}]?)([a-zA-Z0-9][^:]{0,25}?): (.*)$`);
@@ -212,36 +203,11 @@ export const command: PSCommand = {
 		help: {
 			name: 'help',
 			aliases: ['h'],
-			help: "Remove the extra 'help'...",
+			help: null,
+			flags: { noDisplay: true },
 			syntax: 'CMD',
-			async run({ broadcastHTML }) {
-				broadcastHTML(
-					<ul>
-						<Entry name="(term / index)">Displays a random quote with the specified search term / at the given index.</Entry>
-						<Entry name="help [h]">Displays this message.</Entry>
-						<Entry name="random [r]">Displays a random quote.</Entry>
-						<Entry name="find [f]">Displays all quotes with the specified search term.</Entry>
-						<Entry name="last [z]">Displays the latest quote added.</Entry>
-						<Entry name="list [l]">
-							Displays a list (up to 50 quotes per list). If given a number, specifically looks up that list.
-						</Entry>
-						<Entry name="page [g]">Sends the user an HTML page (up to 50 quotes per page).</Entry>
-						<Entry name="number [n]">Displays the number of quotes in the room.</Entry>
-						<Entry name="preview [p]">Displays a preview of the given quote (without actually adding it)</Entry>
-						<Entry name="add [a]">
-							Adds the given quote. <code>\n</code> works as a newline, and <code>/me</code> syntax can be formatted via wrapping the
-							username in <code>[]</code> (eg: <code>[14:20:21] • #PartMan hugs Hydro</code> would be formatted as{' '}
-							<code>[14:20:21] • #[PartMan] hugs Hydro</code>) (staff-only)
-						</Entry>
-						<Entry name="delete [d/x]">
-							Deletes the given quote. Accepts either an index or a lookup term (<code>z</code> deletes the last)
-						</Entry>
-						<Entry name="room [m]">
-							Runs the command in the context of the given room. Eg: <code>{prefix}quote room Bot Development | list</code>
-						</Entry>
-					</ul>,
-					{ name: 'quotehelp-partbot' }
-				);
+			async run({ run }) {
+				return run('help quotes');
 			},
 		},
 		random: {
@@ -269,9 +235,9 @@ export const command: PSCommand = {
 			aliases: ['new', 'a', 'n'],
 			perms: 'driver',
 			help:
-				'Adds the given quote. <code>\n</code> works as a newline, and <code>/me</code> syntax can be formatted via ' +
-				'wrapping the username in <code>[]</code> (eg: <code>[14:20:21] • #PartMan hugs Hydro</code> would be formatted ' +
-				'as <code>[14:20:21] • #[PartMan] hugs Hydro</code>)',
+				'Adds the given quote. ``\\n`` works as a newline, and ``/me`` syntax can be formatted via ' +
+				'wrapping the username in ``[]`` (eg: ``[14:20:21] • #PartMan hugs Hydro`` would be formatted ' +
+				'as ``[14:20:21] • #[PartMan] hugs Hydro``)',
 			syntax: 'CMD [new quote]',
 			// TODO: Support DMs
 			async run({ message, arg, broadcastHTML }) {
