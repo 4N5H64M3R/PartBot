@@ -113,11 +113,18 @@ export function renderBackups(room: PSRoomTranslated, gameType: GamesList | 'all
 								{$T('GAME.LABELS.UNSTASH')}
 							</Button>
 							<div style={{ display: 'inline-block', width: 10 }} />
-							{gameType === 'all' ? <small>{Games[game.game].meta.name}</small> : null}
-							<small style={{ width: 48, display: 'inline-block' }}>{game.id}</small>
+							{gameType === 'all' ? (
+								<>
+									<small>{Games[game.game].meta.name}</small>
+									<span>{game.id}</span>
+								</>
+							) : (
+								<small style={{ width: 48, display: 'inline-block' }}>{game.id}</small>
+							)}
 							<div style={{ display: 'inline-block', width: 20 }} />
 							{players.length > 0 ? players.map(player => <Username name={player.name} />).space(', ') : '-'}
-							<small>{toHumanTime(now - game.at, undefined, $T)}</small>
+							<div style={{ display: 'inline-block', width: 20 }} />
+							<small>{$T('COMMANDS.TIMER.TIME_AGO', { timeAgo: toHumanTime(now - game.at, undefined, $T) })}</small>
 						</div>
 					);
 				})

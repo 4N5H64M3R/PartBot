@@ -184,6 +184,7 @@ export default {
 			TIMER_END: '{{user}}, your timer is up!',
 			TIMER_END_WITH_COMMENT: '{{user}}, your timer is up! Reason: {{comment}}',
 			TIMER_SET: 'Your timer has been set for {{timeLeft}} from now.',
+			TIME_AGO: '{{timeAgo}} ago',
 
 			MS: {
 				ABBR: 'ms',
