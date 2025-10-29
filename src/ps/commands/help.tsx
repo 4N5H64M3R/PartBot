@@ -1,3 +1,5 @@
+import { formatText } from 'ps-client/tools';
+
 import { prefix } from '@/config/ps';
 import { LivePSStuff } from '@/sentinel/live';
 import { Perms } from '@/types/perms';
@@ -124,7 +126,7 @@ function SubCommands({
 				{validChildren.map(child => (
 					<p style={{ paddingLeft: 12 }}>
 						<b>{child.name}</b>
-						{child.help ? `: ${child.help}` : null}
+						{child.help ? <span dangerouslySetInnerHTML={{ __html: `: ${formatText(child.help)}` }} /> : null}
 						{child.perms ? (
 							<>
 								{' '}
@@ -196,7 +198,7 @@ export const command: PSCommand = {
 							<br />
 						</>
 					) : null}
-					<p>{command.help}</p>
+					<p dangerouslySetInnerHTML={{ __html: formatText(command.help) }} />
 					<Syntax syntax={command.syntax} originalCommand={context.originalCommand.join(' ')} />
 					<Perms perms={command.perms} />
 					{command.flags ? (
