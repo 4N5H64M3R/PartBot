@@ -5,6 +5,7 @@ import { i18n } from '@/i18n';
 import { getLanguage } from '@/i18n/language';
 import { Games } from '@/ps/games/index';
 import { Button, Username } from '@/utils/components/ps';
+import { toHumanTime } from '@/utils/humanTime';
 import { Logger } from '@/utils/logger';
 
 import type { PSRoomTranslated } from '@/i18n/types';
@@ -98,6 +99,8 @@ export function renderBackups(room: PSRoomTranslated, gameType: GamesList | 'all
 						return <div>Unable to parse backup for {game.id}</div>;
 					}
 					const players = Object.values(parsed.players);
+					const now = Date.now();
+
 					return (
 						<div>
 							<Button
@@ -111,9 +114,10 @@ export function renderBackups(room: PSRoomTranslated, gameType: GamesList | 'all
 							</Button>
 							<div style={{ display: 'inline-block', width: 10 }} />
 							{gameType === 'all' ? <small>{Games[game.game].meta.name}</small> : null}
-							<span>{game.id}</span>
+							<small style={{ width: 48, display: 'inline-block' }}>{game.id}</small>
 							<div style={{ display: 'inline-block', width: 20 }} />
 							{players.length > 0 ? players.map(player => <Username name={player.name} />).space(', ') : '-'}
+							<small>{toHumanTime(now - game.at, undefined, $T)}</small>
 						</div>
 					);
 				})
