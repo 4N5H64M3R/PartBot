@@ -1,20 +1,35 @@
+import { toRoomID } from 'ps-client/tools';
+
 import { PSQuoteRoomPrefs } from '@/cache';
-import { addQuote, getAllQuotes } from '@/database/quotes';
-import { MAX_CHAT_HTML_LENGTH, MAX_PAGE_HTML_LENGTH } from '@/ps/constants';
+import { isGlobalBot, prefix } from '@/config/ps';
+import { type Model as QuoteModel, addQuote, deleteQuoteByIndex, getAllQuotes, quoteToTerms } from '@/database/quotes';
+import { MAX_CHAT_HTML_LENGTH } from '@/ps/constants';
 import { ChatError } from '@/utils/chatError';
 import { Username as UsernameCustom } from '@/utils/components';
-import { Username as UsernamePS } from '@/utils/components/ps';
+import { Button, Username as UsernamePS } from '@/utils/components/ps';
 import { fromHumanTime } from '@/utils/humanTime';
 import { jsxToHTML } from '@/utils/jsxToHTML';
+import { Logger } from '@/utils/logger';
+import { pluralize } from '@/utils/pluralize';
 import { escapeRegEx } from '@/utils/regexEscape';
 import { toId } from '@/utils/toId';
 
-import type { TranslationFn } from '@/i18n/types';
+import type { ToTranslate, TranslationFn } from '@/i18n/types';
 import type { PSCommand } from '@/types/chat';
 import type { PSMessage } from '@/types/ps';
 import type { CSSProperties, ReactElement, ReactNode } from 'react';
 
+type IndexedQuoteModel = [index: number, quote: QuoteModel];
 type QuoteCollection = [index: number, quote: string][];
+
+const PAGE_SIZE = 50;
+const MAX_QUOTE_LENGTH = MAX_CHAT_HTML_LENGTH / PAGE_SIZE;
+
+const getCommand = (baseCmd: string, message: PSMessage) => {
+	const content = `/botmsg ${message.parent.status.userid},${prefix}@${message.target.roomid} ${baseCmd}`;
+	if (isGlobalBot) return content;
+	return `/msgroom ${message.target.roomid},${content}`;
+};
 
 const ranks = ['★', '☆', '^', '⛵', 'ᗢ', '+', '%', '§', '@', '*', '#', '&', '~', '$', '-'].join('');
 const chatRegEx = new RegExp(`^(\\[(?:\\d{2}:){1,2}\\d{2}] )?([${ranks}]?)([a-zA-Z0-9][^:]{0,25}?): (.*)$`);
@@ -23,21 +38,42 @@ const rawMeRegEx = new RegExp(`^((?:\\[(?:\\d{2}:){1,2}\\d{2}] )?• [${ranks}]?
 const jnlRegEx = /^(?:.*? (?:joined|left)(?:; )?){1,2}$/;
 const rawRegEx = /^(\[(?:\d{2}:){1,2}\d{2}] )?(.*)$/;
 
-async function getRoom(message: PSMessage, $T: TranslationFn): Promise<string> {
+async function getRoom(givenRoom: unknown, message: PSMessage, $T: TranslationFn): Promise<string> {
+	if (typeof givenRoom === 'string') return givenRoom;
 	if (message.type === 'chat') return message.target.roomid;
 	const prefs = PSQuoteRoomPrefs[message.author.userid];
 	if (prefs && message.time - prefs.at.getTime() < fromHumanTime('1 hour')) return prefs.room;
 	message.reply(`Which room are you looking for a quote in?`);
 	const answer = await message.target
 		.waitFor(msg => {
-			return msg.content.length > 0;
+			return msg.content.length > 0 && !!msg.parent.getRoom(msg.content);
 		})
 		.catch(() => {
 			throw new ChatError($T('COMMANDS.ROOM_NOT_GIVEN'));
 		});
-	const _room = toId(answer.content);
+	const _room = toRoomID(answer.content);
 	PSQuoteRoomPrefs[message.author.userid] = { room: _room, at: new Date() };
 	return _room;
+}
+
+function getQuoteSearchWeight(quote: QuoteModel, singleTerm: string, terms: string[]): number {
+	if (quote.rawText.includes(singleTerm)) return 3;
+	const quoteTerms = quote.rawText.split(' ');
+	if (terms.every(term => quoteTerms.includes(term))) return 2;
+	if (terms.some(term => quoteTerms.includes(term))) return 1;
+	return 0;
+}
+
+function searchQuotes(quotes: IndexedQuoteModel[], arg: string): IndexedQuoteModel[] {
+	const singleTerm = quoteToTerms(arg).trim();
+	if (!singleTerm) return [];
+	const terms = singleTerm.split(' ');
+
+	const weights = quotes.map(([index, quote]) => ({ weight: getQuoteSearchWeight(quote, singleTerm, terms), index, quote }));
+
+	const max = Math.max(...weights.map(({ weight }) => weight));
+	if (max === 0) return [];
+	return weights.filter(({ weight }) => weight === max).map(({ quote, index }) => [index, quote]);
 }
 
 function parseQuote(quote: string): string {
@@ -130,10 +166,7 @@ function FormatQuote({
 						<FormatQuoteLine
 							line={quoteLines[2]}
 							psUsernameTag={psUsernameTag}
-							style={{
-								padding: '3px 0',
-								display: 'inline-block',
-							}}
+							style={{ padding: '3px 0', display: 'inline-block' }}
 						/>
 					</summary>
 					{quoteLines.slice(3).map(line => (
@@ -160,39 +193,75 @@ function _FormatSmogQuote(quote: string): string {
 		.join('\n');
 }
 
-function _MultiQuotes({ list, paginate, buffer }: { list: QuoteCollection; paginate?: boolean; buffer?: number }): {
-	component: string;
-	remaining: QuoteCollection;
-} {
-	const quoteList = list.slice();
-	const cap = (paginate ? MAX_PAGE_HTML_LENGTH : MAX_CHAT_HTML_LENGTH) - (buffer ?? 10);
+function MultiQuotes({
+	list,
+	pageNum,
+	total,
+	command,
+	title: baseTitle,
+	showAll = false,
+}: {
+	list: QuoteCollection;
+	pageNum: number | null;
+	total: number;
+	command: string | null;
+	title?: string;
+	showAll?: boolean;
+}): ReactElement {
+	const useDropdown = !showAll && list.length > 3;
+	const pageCount = Math.ceil(total / PAGE_SIZE);
+	const suffix = `(${pluralize(list.length, {
+		singular: 'quote',
+		plural: 'quotes',
+	})}${total > list.length ? ` of ${total} total` : ''})`;
+	const title = baseTitle ? `${baseTitle} ${suffix}` : pageNum ? `Page ${pageNum} of ${pageCount} ${suffix}` : `All Quotes`;
+	const quotes = list.map(([header, quote]) => <FormatQuote quote={quote} header={`#${header}`} />).space(<hr />, !useDropdown);
 
-	const renderedQuotes: QuoteCollection = [];
-	let component = '';
-
-	while (quoteList.length) {
-		const next = quoteList.shift()!;
-		const newComponent = jsxToHTML(
-			<>
+	const content = useDropdown ? (
+		<>
+			<hr />
+			<details>
+				<summary>
+					<h3 style={{ display: 'inline-block' }}>{title}</h3>
+				</summary>
 				<hr />
-				{[...renderedQuotes, next].map(([header, quote]) => (
-					<>
-						<FormatQuote quote={quote} header={`#${header}`} />
-						<hr />
-					</>
-				))}
-			</>
-		);
-		if (newComponent.length > cap) break;
-		component = newComponent;
-		renderedQuotes.push(next);
-	}
-	return { component, remaining: quoteList };
+				{quotes}
+			</details>
+			<hr />
+		</>
+	) : (
+		<>{quotes}</>
+	);
+
+	const showNav = command && pageCount && pageNum;
+	const navPanel = showNav ? (
+		<div style={{ margin: '4px 8px' }}>
+			{pageNum > 1 ? (
+				<Button name="send" value={`${command} ${pageNum - 1}`}>
+					Previous
+				</Button>
+			) : null}
+			{pageNum < pageCount ? (
+				<Button name="send" value={`${command} ${pageNum + 1}`}>
+					Next
+				</Button>
+			) : null}
+		</div>
+	) : null;
+
+	return (
+		<div style={{ margin: '4px 8px' }} className={showAll ? 'chat' : undefined}>
+			{showAll && showNav ? [<hr />, navPanel, <hr />, <h3>{title}</h3>] : null}
+			{content}
+			{showNav ? [navPanel, <hr />] : null}
+		</div>
+	);
 }
 
 export const command: PSCommand = {
 	name: 'quotes',
 	aliases: ['q', 'quote'],
+	flags: { allowPMs: true },
 	help: 'Quotes module!',
 	syntax: 'CMD',
 	categories: ['utility'],
@@ -213,10 +282,10 @@ export const command: PSCommand = {
 		random: {
 			name: 'random',
 			aliases: ['rand', 'r'],
-			help: 'Displays a random quote',
+			help: 'Displays a random quote.',
 			syntax: 'CMD',
-			async run({ message, broadcast, broadcastHTML, room: _room, $T }) {
-				const room: string = (_room as string) ?? (await getRoom(message, $T));
+			async run({ message, broadcast, broadcastHTML, room: givenRoom, $T }) {
+				const room: string = await getRoom(givenRoom, message, $T);
 				const quotes = await getAllQuotes(room);
 				const [index, randQuote] = Object.entries(quotes).random() ?? [0, null];
 				if (!randQuote) return broadcast($T('COMMANDS.QUOTES.NO_QUOTES_FOUND'));
@@ -226,7 +295,7 @@ export const command: PSCommand = {
 						<FormatQuote quote={randQuote.quote} header={`#${~~index + 1}`} />
 						<hr />
 					</>,
-					{ name: 'viewquote-partbot' }
+					{ name: `viewquote-${message.parent.status.userid}` }
 				);
 			},
 		},
@@ -234,30 +303,33 @@ export const command: PSCommand = {
 			name: 'add',
 			aliases: ['new', 'a', 'n'],
 			perms: 'driver',
+			flags: { allowPMs: false },
 			help:
 				'Adds the given quote. ``\\n`` works as a newline, and ``/me`` syntax can be formatted via ' +
 				'wrapping the username in ``[]`` (eg: ``[14:20:21] • #PartMan hugs Hydro`` would be formatted ' +
-				'as ``[14:20:21] • #[PartMan] hugs Hydro``)',
+				'as ``[14:20:21] • #[PartMan] hugs Hydro``).',
 			syntax: 'CMD [new quote]',
-			// TODO: Support DMs
 			async run({ message, arg, broadcastHTML }) {
 				const parsedQuote = parseQuote(arg);
+				const rendered = jsxToHTML(<FormatQuote quote={parsedQuote} />);
+
+				if (rendered.length > MAX_QUOTE_LENGTH) throw new ChatError('Quote is too long.' as ToTranslate);
 				await addQuote(parsedQuote, message.target.id, message.author.name);
 				const { length } = await getAllQuotes(message.target.id);
 				broadcastHTML(
 					<>
 						<hr />
-						<FormatQuote quote={parsedQuote} header={`#${length}`} />
+						<FormatQuote quote={parsedQuote} header={`Quote #${length} added.`} />
 						<hr />
 					</>,
-					{ name: 'viewquote-partbot' }
+					{ name: `viewquote-${message.parent.status.userid}` }
 				);
 			},
 		},
 		preview: {
 			name: 'preview',
 			aliases: ['p'],
-			perms: 'driver',
+			perms: (message, check) => (message.type === 'pm' ? true : check('driver')),
 			help: 'Previews the given quote. Syntax is the same as add.',
 			syntax: 'CMD [new quote]',
 			async run({ message, arg, broadcastHTML }) {
@@ -269,12 +341,238 @@ export const command: PSCommand = {
 						<FormatQuote quote={parsedQuote} header={`#${length} [preview]`} />
 						<hr />
 					</>,
-					{ name: 'previewquote-partbot' }
+					{ name: `previewquote-${message.parent.status.userid}` }
 				);
 			},
 		},
+		find: {
+			name: 'find',
+			aliases: ['f', 'filter', 'search'],
+			help: 'Displays all quotes with the specified search term.',
+			syntax: 'CMD [search term]',
+			async run({ message, arg, broadcast, broadcastHTML, room: givenRoom, $T }) {
+				if (!arg) throw new ChatError('Please provide a search term.' as ToTranslate);
+				const room: string = await getRoom(givenRoom, message, $T);
+				const quotes = await getAllQuotes(room);
+
+				const foundQuotes: QuoteCollection = searchQuotes(
+					quotes.map<IndexedQuoteModel>((quote, index) => [index + 1, quote]),
+					arg
+				).map(([index, quote]) => [index, quote.quote]);
+
+				if (!foundQuotes.length) return broadcast($T('COMMANDS.QUOTES.NO_QUOTES_FOUND'));
+
+				const showQuotes = foundQuotes.slice(0, PAGE_SIZE);
+				broadcastHTML(
+					MultiQuotes({
+						list: showQuotes,
+						title: 'Matching Quotes',
+						pageNum: foundQuotes.length > PAGE_SIZE ? 1 : null,
+						total: foundQuotes.length,
+						command: null,
+					}),
+					{ name: `viewquote-${message.parent.status.userid}` }
+				);
+			},
+		},
+		last: {
+			name: 'last',
+			aliases: ['z'],
+			help: 'Displays the latest quote added.',
+			syntax: 'CMD',
+			async run({ message, broadcast, broadcastHTML, room: givenRoom, $T }) {
+				const room: string = await getRoom(givenRoom, message, $T);
+				const quotes = await getAllQuotes(room);
+				if (!quotes.length) return broadcast($T('COMMANDS.QUOTES.NO_QUOTES_FOUND'));
+				const lastQuote = quotes[quotes.length - 1];
+				broadcastHTML(
+					<>
+						<hr />
+						<FormatQuote quote={lastQuote.quote} header={`#${quotes.length}`} />
+						<hr />
+					</>,
+					{ name: `viewquote-${message.parent.status.userid}` }
+				);
+			},
+		},
+		list: {
+			name: 'list',
+			aliases: ['l'],
+			flags: { routePMs: true, allowPMs: false },
+			help: 'Displays a list of quotes. Specify a number to view a specific page.',
+			syntax: 'CMD [page number]',
+			async run({ message, arg, broadcast, broadcastHTML, room: givenRoom, $T }) {
+				const room: string = await getRoom(givenRoom, message, $T);
+				const quotes = await getAllQuotes(room);
+				if (!quotes.length) return broadcast($T('COMMANDS.QUOTES.NO_QUOTES_FOUND'));
+
+				const pageNum = arg ? parseInt(arg) || 1 : 1;
+				const startIndex = (pageNum - 1) * PAGE_SIZE;
+				const endIndex = startIndex + PAGE_SIZE;
+				const pagedQuotes: QuoteCollection = quotes
+					.slice(startIndex, endIndex)
+					.map((quote, index) => [startIndex + index + 1, quote.quote]);
+
+				if (!pagedQuotes.length) throw new ChatError('Invalid page number.' as ToTranslate);
+
+				broadcastHTML(
+					MultiQuotes({
+						list: pagedQuotes,
+						pageNum: quotes.length > PAGE_SIZE ? pageNum : null,
+						total: quotes.length,
+						command: getCommand('quote list', message),
+					}),
+					{ name: `viewquote-${message.parent.status.userid}` }
+				);
+			},
+		},
+		page: {
+			name: 'page',
+			aliases: ['g'],
+			flags: { routePMs: true, allowPMs: false },
+			help: 'Sends the user an HTML page of quotes.',
+			syntax: 'CMD [page number?]',
+			async run({ message, arg, broadcast, room: givenRoom, $T }) {
+				const room: string = await getRoom(givenRoom, message, $T);
+				const quotes = await getAllQuotes(room);
+				if (!quotes.length) return broadcast($T('COMMANDS.QUOTES.NO_QUOTES_FOUND'));
+
+				const pageNum = arg ? parseInt(arg) || 1 : 1;
+				const startIndex = (pageNum - 1) * PAGE_SIZE;
+				const endIndex = startIndex + PAGE_SIZE;
+				const pageQuotes: QuoteCollection = quotes
+					.slice(startIndex, endIndex)
+					.map((quote, index) => [startIndex + index + 1, quote.quote]);
+
+				if (!pageQuotes.length) throw new ChatError('Invalid page number.' as ToTranslate);
+
+				message.author.pageHTML(
+					MultiQuotes({
+						list: pageQuotes,
+						showAll: true,
+						pageNum: quotes.length > PAGE_SIZE ? pageNum : null,
+						total: quotes.length,
+						command: getCommand('quote page', message),
+					}),
+					{ name: `quotes-${room}` }
+				);
+			},
+		},
+		number: {
+			name: 'number',
+			aliases: ['n', 'amount', 'amt'],
+			help: 'Displays the number of quotes in the room.',
+			syntax: 'CMD',
+			async run({ message, room: givenRoom, $T }) {
+				const room: string = await getRoom(givenRoom, message, $T);
+				const quotes = await getAllQuotes(room);
+				message.reply(
+					`There ${quotes.length === 1 ? 'is' : 'are'} ${pluralize(quotes.length, {
+						singular: 'quote',
+						plural: 'quotes',
+					})} in this room.` as ToTranslate
+				);
+			},
+		},
+		delete: {
+			name: 'delete',
+			aliases: ['d', 'x', 'remove'],
+			flags: { allowPMs: false },
+			perms: 'driver',
+			help: 'Deletes the given quote. Accepts either an index or a lookup term (``z`` deletes the last).',
+			syntax: 'CMD [index/term]',
+			async run({ message, arg, broadcast, broadcastHTML, $T }) {
+				if (!arg) throw new ChatError('Please provide an index or search term.' as ToTranslate);
+				const room = message.target.id;
+				const quotes = await getAllQuotes(room);
+				if (!quotes.length) return broadcast($T('COMMANDS.QUOTES.NO_QUOTES_FOUND'));
+
+				let indexToDelete: number;
+				let toDelete: QuoteModel;
+
+				if (toId(arg) === 'z') {
+					indexToDelete = quotes.length - 1;
+					toDelete = quotes[indexToDelete];
+				} else if (!isNaN(parseInt(arg))) {
+					indexToDelete = parseInt(arg) - 1;
+					if (indexToDelete < 0 || indexToDelete >= quotes.length) {
+						throw new ChatError('Invalid quote index.' as ToTranslate);
+					}
+					toDelete = quotes[indexToDelete];
+				} else {
+					// Search for quote
+					const matching = searchQuotes(
+						quotes.map<IndexedQuoteModel>((quote, index) => [index + 1, quote]),
+						arg
+					).map(([, quote]) => quote);
+					if (matching.length === 0) throw new ChatError('No quote found matching that term.' as ToTranslate);
+					if (matching.length > 1) throw new ChatError('Multiple quotes found matching that term.' as ToTranslate);
+					toDelete = matching[0];
+					indexToDelete = quotes.indexOf(toDelete);
+				}
+
+				broadcastHTML(
+					<>
+						<hr />
+						<FormatQuote quote={quotes[indexToDelete].quote} header={`Deleting #${indexToDelete + 1}:`} />
+						<hr />
+					</>
+				);
+				message.reply($T('CONFIRM'));
+				await message.target
+					.waitFor(msg => toId(msg.content) === 'confirm')
+					.catch(() => {
+						throw new ChatError($T('NOT_CONFIRMED'));
+					});
+
+				Logger.deepLog(toDelete, `deleted by ${message.author.name} in ${message.target.title}`);
+				await deleteQuoteByIndex(indexToDelete, toDelete, room);
+				message.reply('Quote deleted.' as ToTranslate);
+			},
+		},
+		room: {
+			name: 'room',
+			aliases: ['m'],
+			help: "Runs the command in the context of the given room. Can set the user's PM quote room preference if no subcommand is given.",
+			syntax: 'CMD [room] | [subcommand]',
+			async run({ message, arg, run }) {
+				if (!arg) throw new ChatError('Please provide a room and command.' as ToTranslate);
+				const parts = arg.split('|');
+				if (message.type === 'pm' && parts.length === 1) {
+					PSQuoteRoomPrefs[message.author.userid] = { room: toRoomID(arg), at: new Date() };
+					return message.reply(`Quote room preference set to ${arg}.` as ToTranslate);
+				}
+				const [targetRoom, subcommand] = parts;
+				if (parts.length !== 2 || !toId(subcommand)) throw new ChatError('Please specify a room and a command.' as ToTranslate);
+				const roomId = toRoomID(targetRoom);
+
+				return run(`quote ${subcommand}`, { room: roomId });
+			},
+		},
 	},
-	async run({ run }) {
-		return run('quote random');
+	async run({ message, arg, run, room: givenRoom, $T }) {
+		if (!arg) return run('quote random');
+
+		// Check if it's a number (index lookup)
+		const index = parseInt(arg);
+		if (!isNaN(index)) {
+			const room: string = await getRoom(givenRoom, message, $T);
+			const quotes = await getAllQuotes(room);
+			if (index < 1 || index > quotes.length) {
+				throw new ChatError('Invalid quote index.' as ToTranslate);
+			}
+			const quote = quotes[index - 1];
+			return message.replyHTML(
+				<>
+					<hr />
+					<FormatQuote quote={quote.quote} header={`#${index}`} />
+					<hr />
+				</>,
+				{ name: `viewquote-${message.parent.status.userid}` }
+			);
+		}
+
+		// Otherwise treat as search term
+		return run(`quote find ${arg}`);
 	},
 };

@@ -22,7 +22,8 @@ declare global {
 		shuffle(rng?: RNGSource): T[];
 		/** Default order is ascending */
 		sortBy(getSort: ((term: T, thisArray: T[]) => unknown) | null, dir?: 'asc' | 'desc'): T[];
-		space<S = unknown>(spacer: S): (T | S)[];
+		/** If ends is true, the spacer will be added to the ends of the array as well. */
+		space<S = unknown>(spacer: S, ends?: boolean): (T | S)[];
 		sum(): T extends number ? number : never;
 		unique(): T[];
 	}
@@ -39,7 +40,8 @@ declare global {
 		list($T?: TranslationFn): string;
 		random(rng?: RNGSource): T | null;
 		sample(amount: number, rng?: RNGSource): T[];
-		space<S = unknown>(spacer: S): (T | S)[];
+		/** If ends is true, the spacer will be added to the ends of the array as well. */
+		space<S = unknown>(spacer: S, ends?: boolean): (T | S)[];
 		sum(): T extends number ? number : never;
 		unique(): T[];
 	}
@@ -247,15 +249,17 @@ Object.defineProperties(Array.prototype, {
 		enumerable: false,
 		writable: false,
 		configurable: false,
-		value: function <T, S>(this: T[], spacer: S): (T | S)[] {
+		value: function <T, S>(this: T[], spacer: S, ends?: boolean): (T | S)[] {
 			if (this.length === 0 || this.length === 1) return this;
-			return this.slice(1).reduce<(T | S)[]>(
-				(acc, term) => {
-					acc.push(spacer, term);
-					return acc;
-				},
-				[this[0]]
-			);
+			return this.slice(1)
+				.reduce<(T | S)[]>(
+					(acc, term) => {
+						acc.push(spacer, term);
+						return acc;
+					},
+					ends ? [spacer, this[0]] : [this[0]]
+				)
+				.concat(ends ? [spacer] : []);
 		},
 	},
 	sum: {

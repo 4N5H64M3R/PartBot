@@ -3,6 +3,13 @@ import mongoose from 'mongoose';
 import { IS_ENABLED } from '@/enabled';
 import { toId } from '@/utils/toId';
 
+export function quoteToTerms(quote: string): string {
+	return quote
+		.toLowerCase()
+		.replace(/[^a-zA-Z0-9]+/g, ' ')
+		.trim();
+}
+
 const schema = new mongoose.Schema({
 	quote: {
 		type: String,
@@ -12,10 +19,7 @@ const schema = new mongoose.Schema({
 		type: String,
 		required: true,
 		default: function (this: Model) {
-			return (this.quote as string)
-				.toLowerCase()
-				.replace(/[^a-zA-Z0-9]+/g, ' ')
-				.trim();
+			return quoteToTerms(this.quote);
 		},
 	},
 	room: {
@@ -40,7 +44,7 @@ const schema = new mongoose.Schema({
 	},
 });
 
-interface Model {
+export interface Model {
 	quote: string;
 	rawText: string;
 	room: string;
@@ -66,11 +70,13 @@ export async function getQuoteByIndex(index: number, room: string): Promise<Mode
 	return quotes[index] ?? null;
 }
 
-export async function deleteQuoteByIndex(index: number, room: string): Promise<Model | null> {
+export async function deleteQuoteByIndex(index: number, quote: Model, room: string): Promise<Model | null> {
 	if (!IS_ENABLED.DB) return null;
+
 	const allQuotes = await model.find({ room }).sort({ at: 1 });
 	if (index >= allQuotes.length) return null;
 	const toDelete = allQuotes[index];
+	if (toDelete.quote !== quote.quote) throw new Error(`Quote mismatch! Try again, probably. ${toDelete.quote} !== ${quote.quote}`);
 	await toDelete.deleteOne();
 	return toDelete.toObject();
 }

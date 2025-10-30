@@ -44,7 +44,7 @@ export function parse(
 	if (!commandObj) throw new Error($T('INVALID_ALIAS', { aliasFor: context.command![0] }));
 
 	const cascade: Cascade = {
-		flags: commandObj.flags ?? {},
+		flags: Object.assign({}, commandObj.flags ?? {}),
 		perms: commandObj.perms ?? 'regular',
 	};
 	while (command.length > 0 && commandObj) {
