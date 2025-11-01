@@ -554,7 +554,7 @@ export const command: PSCommand = {
 			},
 		},
 	},
-	async run({ message, arg, run, room: givenRoom, $T }) {
+	async run({ message, arg, run, room: givenRoom, broadcastHTML, $T }) {
 		if (!arg) return run('quote random');
 
 		const room: string = await getRoom(givenRoom, message, $T);
@@ -567,7 +567,7 @@ export const command: PSCommand = {
 				throw new ChatError('Invalid quote index.' as ToTranslate);
 			}
 			const quote = quotes[index - 1];
-			return message.replyHTML(
+			return broadcastHTML(
 				<>
 					<hr />
 					<FormatQuote quote={quote.quote} header={`#${index}`} />
