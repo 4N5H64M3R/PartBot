@@ -161,25 +161,27 @@ function FormatQuote({
 	return (
 		<>
 			{header}
-			{quoteLines.length > 5 ? (
-				<details className="readmore">
-					<summary>
-						{quoteLines.slice(0, 2).map(line => (
+			<div style={{ marginLeft: 12 }}>
+				{quoteLines.length > 5 ? (
+					<details className="readmore">
+						<summary>
+							{quoteLines.slice(0, 2).map(line => (
+								<FormatQuoteLine line={line} psUsernameTag={psUsernameTag} />
+							))}
+							<FormatQuoteLine
+								line={quoteLines[2]}
+								psUsernameTag={psUsernameTag}
+								style={{ padding: '3px 0', display: 'inline-block' }}
+							/>
+						</summary>
+						{quoteLines.slice(3).map(line => (
 							<FormatQuoteLine line={line} psUsernameTag={psUsernameTag} />
 						))}
-						<FormatQuoteLine
-							line={quoteLines[2]}
-							psUsernameTag={psUsernameTag}
-							style={{ padding: '3px 0', display: 'inline-block' }}
-						/>
-					</summary>
-					{quoteLines.slice(3).map(line => (
-						<FormatQuoteLine line={line} psUsernameTag={psUsernameTag} />
-					))}
-				</details>
-			) : (
-				quoteLines.map(line => <FormatQuoteLine line={line} psUsernameTag={psUsernameTag} />)
-			)}
+					</details>
+				) : (
+					quoteLines.map(line => <FormatQuoteLine line={line} psUsernameTag={psUsernameTag} />)
+				)}
+			</div>
 		</>
 	);
 }
