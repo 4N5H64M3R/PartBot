@@ -1,4 +1,4 @@
-import { toRoomID } from 'ps-client/tools';
+import { formatText, toRoomID } from 'ps-client/tools';
 
 import { PSQuoteRoomPrefs } from '@/cache';
 import { isGlobalBot, prefix } from '@/config/ps';
@@ -105,7 +105,7 @@ function FormatQuoteLine({ line, style, psUsernameTag }: { line: string; style?:
 				<span className="username">
 					{psUsernameTag ? <UsernamePS name={`${chatMatch[3]}:`} /> : <UsernameCustom name={`${chatMatch[3]}:`} />}
 				</span>
-				<em> {chatMatch[4]}</em>
+				<em dangerouslySetInnerHTML={{ __html: formatText(' ' + chatMatch[4]) }} />
 			</div>
 		);
 
@@ -118,7 +118,7 @@ function FormatQuoteLine({ line, style, psUsernameTag }: { line: string; style?:
 				<em>
 					<small>{meMatch[2]}</small>
 					<span className="username">{meMatch[3].slice(1, -1)}</span>
-					<i> {meMatch[4]}</i>
+					<i dangerouslySetInnerHTML={{ __html: formatText(' ' + meMatch[4]) }} />
 				</em>
 			</div>
 		);
