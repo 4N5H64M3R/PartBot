@@ -1,4 +1,4 @@
-import { formatText, toRoomID } from 'ps-client/tools';
+import { escapeHTML, formatText, toRoomID } from 'ps-client/tools';
 
 import { PSQuoteRoomPrefs } from '@/cache';
 import { isGlobalBot, prefix } from '@/config/ps';
@@ -137,10 +137,11 @@ function FormatQuoteLine({ line, style, psUsernameTag }: { line: string; style?:
 	const rawMatch = line.match(rawRegEx);
 	if (rawMatch)
 		return (
-			<div className="chat chatmessage-partbot" style={style ?? { padding: '3px 0' }}>
-				<small>{rawMatch[1]}</small>
-				{rawMatch[2]}
-			</div>
+			<div
+				className="chat chatmessage-partbot"
+				style={style ?? { padding: '3px 0' }}
+				dangerouslySetInnerHTML={{ __html: `<small>${escapeHTML(rawMatch[1] ?? '')}</small>` + formatText(rawMatch[2]) }}
+			/>
 		);
 
 	return undefined;
