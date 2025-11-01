@@ -98,7 +98,10 @@ function FormatQuoteLine({ line, style, psUsernameTag }: { line: string; style?:
 	if (chatMatch)
 		return (
 			<div className="chat chatmessage-a" style={style ?? { padding: '3px 0' }}>
-				<small>{chatMatch[1] + chatMatch[2]}</small>
+				<small>
+					{chatMatch[1]}
+					{chatMatch[2]}
+				</small>
 				<span className="username">
 					{psUsernameTag ? <UsernamePS name={`${chatMatch[3]}:`} /> : <UsernameCustom name={`${chatMatch[3]}:`} />}
 				</span>
