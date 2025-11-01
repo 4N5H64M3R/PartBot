@@ -553,10 +553,11 @@ export const command: PSCommand = {
 	async run({ message, arg, run, room: givenRoom, $T }) {
 		if (!arg) return run('quote random');
 
+		const room: string = await getRoom(givenRoom, message, $T);
+
 		// Check if it's a number (index lookup)
 		const index = parseInt(arg);
 		if (!isNaN(index)) {
-			const room: string = await getRoom(givenRoom, message, $T);
 			const quotes = await getAllQuotes(room);
 			if (index < 1 || index > quotes.length) {
 				throw new ChatError('Invalid quote index.' as ToTranslate);
@@ -573,6 +574,6 @@ export const command: PSCommand = {
 		}
 
 		// Otherwise treat as search term
-		return run(`quote find ${arg}`);
+		return run(`quote find ${arg}`, { room });
 	},
 };
