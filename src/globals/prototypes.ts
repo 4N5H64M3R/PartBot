@@ -250,7 +250,8 @@ Object.defineProperties(Array.prototype, {
 		writable: false,
 		configurable: false,
 		value: function <T, S>(this: T[], spacer: S, ends?: boolean): (T | S)[] {
-			if (this.length === 0 || this.length === 1) return this;
+			if (this.length === 0) return [];
+			if (this.length === 1) return ends ? [spacer, this[0], spacer] : [this[0]];
 			return this.slice(1)
 				.reduce<(T | S)[]>(
 					(acc, term) => {
