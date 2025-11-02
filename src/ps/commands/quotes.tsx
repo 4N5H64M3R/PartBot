@@ -66,7 +66,7 @@ function getQuoteSearchWeight(quote: QuoteModel, singleTerm: string, terms: stri
 
 function searchQuotes(quotes: IndexedQuoteModel[], arg: string): IndexedQuoteModel[] {
 	const singleTerm = quoteToTerms(arg).trim();
-	if (!singleTerm) return [];
+	if (!singleTerm) return quotes;
 	const terms = singleTerm.split(' ');
 
 	const weights = quotes.map(([index, quote]) => ({ weight: getQuoteSearchWeight(quote, singleTerm, terms), index, quote }));
@@ -290,15 +290,20 @@ export const command: PSCommand = {
 			aliases: ['rand', 'r'],
 			help: 'Displays a random quote.',
 			syntax: 'CMD',
-			async run({ message, broadcast, broadcastHTML, room: givenRoom, $T }) {
+			async run({ message, arg, broadcast, broadcastHTML, room: givenRoom, $T }) {
 				const room: string = await getRoom(givenRoom, message, $T);
 				const quotes = await getAllQuotes(room);
-				const [index, randQuote] = Object.entries(quotes).random() ?? [0, null];
-				if (!randQuote) return broadcast($T('COMMANDS.QUOTES.NO_QUOTES_FOUND'));
+				if (!quotes.length) return broadcast($T('COMMANDS.QUOTES.NO_QUOTES_FOUND'));
+				const matchingQuotes = searchQuotes(
+					quotes.map<IndexedQuoteModel>((quote, index) => [index + 1, quote]),
+					arg
+				);
+				if (!matchingQuotes.length) return broadcast($T('COMMANDS.QUOTES.NO_QUOTES_FOUND_MATCHING', { search: arg }));
+				const [index, randQuote] = matchingQuotes.random()!;
 				broadcastHTML(
 					<>
 						<hr />
-						<FormatQuote quote={randQuote.quote} header={`#${~~index + 1}`} />
+						<FormatQuote quote={randQuote.quote} header={`#${+index + 1}`} />
 						<hr />
 					</>,
 					{ name: `viewquote-${message.parent.status.userid}` }
@@ -580,6 +585,6 @@ export const command: PSCommand = {
 		}
 
 		// Otherwise treat as search term
-		return run(`quote find ${arg}`, { room });
+		return run(`quote random ${arg}`, { room });
 	},
 };

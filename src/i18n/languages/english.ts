@@ -172,6 +172,7 @@ export default {
 
 		QUOTES: {
 			NO_QUOTES_FOUND: 'No quotes found.',
+			NO_QUOTES_FOUND_MATCHING: 'No quotes found matching "{{search}}".',
 		},
 
 		TIMER: {
