@@ -95,7 +95,8 @@ function parseQuote(quote: string): string {
 
 function FormatQuoteLine({ line, style, psUsernameTag }: { line: string; style?: CSSProperties; psUsernameTag?: boolean }): ReactNode {
 	const chatMatch = line.match(chatRegEx);
-	if (chatMatch)
+	if (chatMatch) {
+		const chatMessage = formatText(' ' + chatMatch[4]);
 		return (
 			<div className="chat chatmessage-a" style={style ?? { padding: '3px 0' }}>
 				<small>
@@ -105,9 +106,14 @@ function FormatQuoteLine({ line, style, psUsernameTag }: { line: string; style?:
 				<span className="username">
 					{psUsernameTag ? <UsernamePS name={`${chatMatch[3]}:`} /> : <UsernameCustom name={`${chatMatch[3]}:`} />}
 				</span>
-				<em dangerouslySetInnerHTML={{ __html: formatText(' ' + chatMatch[4]) }} />
+				<em
+					dangerouslySetInnerHTML={{
+						__html: chatMatch[4].startsWith('>') ? `<span class="greentext">${chatMessage}</span>` : chatMessage,
+					}}
+				/>
 			</div>
 		);
+	}
 
 	const meMatch = line.match(meRegEx);
 	if (meMatch)
