@@ -1,7 +1,7 @@
 import type { NoTranslate } from '@/i18n/types';
 import type { PSCommand } from '@/types/chat';
 
-export const commands: PSCommand[] = [
+export const command: PSCommand[] = [
 	{
 		name: 'boop',
 		help: 'Boops',
