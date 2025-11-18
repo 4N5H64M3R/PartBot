@@ -24,6 +24,17 @@ export const command: PSCommand[] = [
 		},
 	},
 	{
+		name: 'mish',
+		help: 'Mishes a person.',
+		syntax: 'CMD [user?]',
+		perms: 'voice',
+		categories: ['casual'],
+		async run({ message, arg }) {
+			if (!arg) message.reply('mish' as NoTranslate);
+			else message.reply(`/me mishes ${arg}` as NoTranslate);
+		},
+	},
+	{
 		name: 'ping',
 		help: "You're asking help on... how to use ping?",
 		syntax: 'CMD',
