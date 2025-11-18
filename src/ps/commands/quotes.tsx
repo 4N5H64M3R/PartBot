@@ -23,7 +23,7 @@ type IndexedQuoteModel = [index: number, quote: QuoteModel];
 type QuoteCollection = [index: number, quote: string][];
 
 const PAGE_SIZE = 50;
-const MAX_QUOTE_LENGTH = MAX_CHAT_HTML_LENGTH / PAGE_SIZE;
+const MAX_QUOTE_LENGTH = (MAX_CHAT_HTML_LENGTH / PAGE_SIZE) * 2; // Leniency margin of 2x
 
 const getCommand = (baseCmd: string, message: PSMessage) => {
 	const content = `/botmsg ${message.parent.status.userid},${prefix}@${message.target.roomid} ${baseCmd}`;
