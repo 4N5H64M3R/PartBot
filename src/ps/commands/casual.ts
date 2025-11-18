@@ -31,6 +31,7 @@ export const command: PSCommand[] = [
 		help: 'Mishes a person.',
 		syntax: 'CMD [user?]',
 		perms: 'voice',
+		rooms: ['indonesia'],
 		categories: ['casual'],
 		async run({ message, arg }) {
 			const targetId = toId(arg);
