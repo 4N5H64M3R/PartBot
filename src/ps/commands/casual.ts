@@ -33,9 +33,14 @@ export const command: PSCommand[] = [
 		perms: 'voice',
 		categories: ['casual'],
 		async run({ message, arg }) {
-			if (!arg) message.reply('mish mish' as NoTranslate);
-			else if (toId(arg) === message.author.id) message.reply('MISH YOU!' as NoTranslate);
-			else {
+			const targetId = toId(arg);
+			if (!targetId) {
+				message.reply('mish mish' as NoTranslate);
+			} else if (!message.target.users.some(user => toId(user) === targetId)) {
+				message.reply('MISH YOU! (Target not in room)' as NoTranslate);
+			} else if (targetId === message.author.id || targetId === message.parent.status.userid) {
+				message.reply('MISH YOU!' as NoTranslate);
+			} else {
 				message.reply(`!dt dewgong\nget MISHED ${arg}` as NoTranslate);
 				const target = message.parent.addUser(arg);
 
