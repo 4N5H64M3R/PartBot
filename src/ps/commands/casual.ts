@@ -1,3 +1,6 @@
+import { isGlobalBot } from '@/config/ps';
+import { toId } from '@/utils/toId';
+
 import type { NoTranslate } from '@/i18n/types';
 import type { PSCommand } from '@/types/chat';
 
@@ -30,8 +33,17 @@ export const command: PSCommand[] = [
 		perms: 'voice',
 		categories: ['casual'],
 		async run({ message, arg }) {
-			if (!arg) message.reply('mish' as NoTranslate);
-			else message.reply(`/me mishes ${arg}` as NoTranslate);
+			if (!arg) message.reply('mish mish' as NoTranslate);
+			else if (toId(arg) === message.author.id) message.reply('MISH YOU!' as NoTranslate);
+			else {
+				message.reply(`!dt dewgong\nget MISHED ${arg}` as NoTranslate);
+				const target = message.parent.addUser(arg);
+
+				const imgUrl = `${process.env.WEB_URL}/static/other/mish.png`;
+				if (isGlobalBot) target.send(`!show ${message.parent.status.userid}` as NoTranslate);
+				else target.send(imgUrl as NoTranslate);
+				target.send(`/pm ${arg},with love from ${message.author.name}` as NoTranslate);
+			}
 		},
 	},
 	{
