@@ -40,7 +40,7 @@ export const command: PSCommand[] = [
 				const target = message.parent.addUser(arg);
 
 				const imgUrl = `${process.env.WEB_URL}/static/other/mish.png`;
-				if (isGlobalBot) target.send(`!show ${message.parent.status.userid}` as NoTranslate);
+				if (isGlobalBot) target.send(`!show ${imgUrl}` as NoTranslate);
 				else target.send(imgUrl as NoTranslate);
 				target.send(`/pm ${arg},with love from ${message.author.name}` as NoTranslate);
 			}
