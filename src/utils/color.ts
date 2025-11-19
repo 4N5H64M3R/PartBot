@@ -1,4 +1,7 @@
 // region Types
+/**
+ * Includes the leading #. All letters are lowercase. Will always have 6 or 8 characters, excluding the #.
+ **/
 export type Hex = string & { __hex: true };
 
 /**
@@ -106,26 +109,33 @@ export function normalizeHue(hue: number): number {
 export function StringToHex(hex: string): Hex | null {
 	const hexVal = hex.replace(/^#/, '');
 	if (![3, 4, 6, 8].includes(hexVal.length)) return null;
-	if (/^[0-9a-f]+$/i.test(hexVal)) return hexVal as Hex;
-	return null;
+	if (!/^[0-9a-f]+$/i.test(hexVal)) return null;
+
+	const isShortHand = hexVal.length === 3 || hexVal.length === 4;
+	const hexString = hexVal
+		.toLowerCase()
+		.split('')
+		.map(char => char.repeat(isShortHand ? 2 : 1))
+		.join('');
+	return `#${hexString}` as Hex;
 }
 
 export function HexToRgb(hex: Hex): Rgb {
 	const hexVal = StringToHex(hex);
 	if (!hexVal) return { R: 0, G: 0, B: 0, colorspace: 'rgba' };
-	const isShortHand = hex.length === 3 || hex.length === 4;
 
-	const R = parseInt(isShortHand ? hexVal.substring(0, 1).repeat(2) : hexVal.substring(0, 2), 16);
-	const G = parseInt(isShortHand ? hexVal.substring(1, 2).repeat(2) : hexVal.substring(2, 4), 16);
-	const B = parseInt(isShortHand ? hexVal.substring(2, 3).repeat(2) : hexVal.substring(4, 6), 16);
-	const a = parseInt(isShortHand ? hexVal.substring(3, 4).repeat(2) : hexVal.substring(6, 8), 16);
+	const R = parseInt(hexVal.substring(1, 3), 16);
+	const G = parseInt(hexVal.substring(3, 5), 16);
+	const B = parseInt(hexVal.substring(5, 7), 16);
+	const a = parseInt(hexVal.substring(7, 9), 16);
 	const rgba: Rgb = { colorspace: 'rgba', R, G, B };
-	if (hex.length === 4 || hex.length === 8) rgba.a = a;
+	const hexLength = hexVal.length - 1;
+	if (hexLength === 4 || hexLength === 8) rgba.a = a;
 	return rgba;
 }
 
 export function RgbToHex({ R, G, B, a }: Rgb): Hex {
-	return `${[R, G, B, ...(a! < 1 ? [Math.round(a! * 255)] : [])]
+	return `#${[R, G, B, ...(a! < 1 ? [Math.round(a! * 255)] : [])]
 		.map(n => (Number.isNaN(n) ? 10 : Math.round(Math.min(Math.max(n, 0), 255))).toString(16).padStart(2, '0'))
 		.join('')}` as Hex;
 }
