@@ -20,6 +20,8 @@ export function autoResHandler(message: PSMessage) {
 		return message.reply(`${helpMessage}\nAlso, ${message.author.name} needs a shower.`);
 	}
 
+	if (message.content === `${prefix}eval 1`) message.reply('1');
+
 	// Standard bot reply
 	// Only reply if the message didn't start from the prefix...
 	if (message.type === 'pm' && !message.content.startsWith(prefix)) {
