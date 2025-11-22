@@ -5,7 +5,6 @@ import { update as updatePSData } from 'ps-client/tools';
 import { PSRoomConfigs } from '@/cache';
 import { updateShowdownData } from '@/cache/showdown';
 import { fetchRoomConfigs } from '@/database/psrooms';
-import { type Language, LanguageMap } from '@/i18n';
 import PS from '@/ps';
 import { registers } from '@/sentinel/registers';
 import { cachebust, cachebustDir } from '@/utils/cachebust';
@@ -65,21 +64,6 @@ export async function hotpatch(this: Sentinel, hotpatchType: HotpatchType, by: s
 
 				const { Logger: NewLogger } = await import('@/utils/logger');
 				Object.assign(Logger, NewLogger);
-				break;
-			}
-
-			case 'i18n': {
-				emptyObject(LanguageMap);
-				await cachebustDir(fsPath('i18n', 'languages'));
-				const languages = (await fs.readdir(fsPath('i18n', 'languages')))
-					.filter(file => file.endsWith('.ts'))
-					.map(file => file.replace('.ts', ''));
-				await Promise.all(
-					languages.map(async language => {
-						const { default: dict } = await import(fsPath('i18n', 'languages', language));
-						LanguageMap[language as Language] = dict;
-					})
-				);
 				break;
 			}
 
