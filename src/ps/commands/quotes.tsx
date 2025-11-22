@@ -1,5 +1,5 @@
-import { escapeHTML, formatText, toRoomID } from 'ps-client/tools';
 import { Temporal } from '@js-temporal/polyfill';
+import { escapeHTML, formatText, toRoomID } from 'ps-client/tools';
 
 import { PSQuoteRoomPrefs } from '@/cache';
 import { isGlobalBot, prefix } from '@/config/ps';
@@ -25,9 +25,9 @@ type IndexedQuoteModel = [index: number, quote: QuoteModel];
 const PAGE_SIZE = 50;
 const MAX_QUOTE_LENGTH = (MAX_CHAT_HTML_LENGTH / PAGE_SIZE) * 2; // Leniency margin of 2x
 
-const getCommand = (baseCmd: string, message: PSMessage) => {
-	const content = `/botmsg ${message.parent.status.userid},${prefix}@${message.target.roomid} ${baseCmd}`;
-	if (isGlobalBot) return content;
+const getCommand = (baseCmd: string, message: PSMessage, room: string) => {
+	const content = `/botmsg ${message.parent.status.userid},${prefix}@${message.target.roomid ?? room} ${baseCmd}`;
+	if (isGlobalBot || message.type === 'pm') return content;
 	return `/msgroom ${message.target.roomid},${content}`;
 };
 
@@ -351,7 +351,7 @@ export const command: PSCommand = {
 				'wrapping the username in ``[]`` (eg: ``[14:20:21] • #PartMan hugs Hydro`` would be formatted ' +
 				'as ``[14:20:21] • #[PartMan] hugs Hydro``).',
 			syntax: 'CMD [new quote]',
-			async run({ message, arg, broadcastHTML, $T }) {
+			async run({ message, arg, broadcastHTML }) {
 				const parsedQuote = parseQuote(arg);
 				const addedBy = message.author.name;
 				const at = Temporal.Now.plainDateISO('UTC').toLocaleString('en-GB');
@@ -377,7 +377,7 @@ export const command: PSCommand = {
 			perms: (message, check) => (message.type === 'pm' ? true : check('driver')),
 			help: 'Previews the given quote. Syntax is the same as add.',
 			syntax: 'CMD [new quote]',
-			async run({ message, arg, broadcastHTML, $T }) {
+			async run({ message, arg, broadcastHTML }) {
 				const parsedQuote = parseQuote(arg);
 				const { length } = await getAllQuotes(message.target.id);
 				broadcastHTML(
@@ -470,7 +470,7 @@ export const command: PSCommand = {
 						list: pagedQuotes,
 						pageNum: quotes.length > PAGE_SIZE ? pageNum : null,
 						total: quotes.length,
-						command: getCommand('quote list', message),
+						command: getCommand('quote list', message, room),
 					}),
 					{ name: `viewquote-${message.parent.status.userid}` }
 				);
@@ -502,7 +502,7 @@ export const command: PSCommand = {
 						showAll: true,
 						pageNum: quotes.length > PAGE_SIZE ? pageNum : null,
 						total: quotes.length,
-						command: getCommand('quote page', message),
+						command: getCommand('quote page', message, room),
 					}),
 					{ name: `quotes-${room}` }
 				);
