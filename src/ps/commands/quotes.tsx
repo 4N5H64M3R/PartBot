@@ -1,4 +1,5 @@
 import { escapeHTML, formatText, toRoomID } from 'ps-client/tools';
+import { Temporal } from '@js-temporal/polyfill';
 
 import { PSQuoteRoomPrefs } from '@/cache';
 import { isGlobalBot, prefix } from '@/config/ps';
@@ -20,7 +21,6 @@ import type { PSMessage } from '@/types/ps';
 import type { CSSProperties, ReactElement, ReactNode } from 'react';
 
 type IndexedQuoteModel = [index: number, quote: QuoteModel];
-type QuoteCollection = [index: number, quote: string][];
 
 const PAGE_SIZE = 50;
 const MAX_QUOTE_LENGTH = (MAX_CHAT_HTML_LENGTH / PAGE_SIZE) * 2; // Leniency margin of 2x
@@ -157,16 +157,20 @@ function FormatQuote({
 	quote,
 	psUsernameTag = true,
 	header,
+	addedBy,
+	dateAdded,
 }: {
 	quote: string;
 	psUsernameTag?: boolean;
+	addedBy?: string;
+	dateAdded?: string;
 	header?: ReactNode;
 	children?: ReactElement[];
 }): ReactElement {
 	const quoteLines = quote.split('\n');
 	return (
 		<>
-			{header}
+			<div style={{ opacity: 0.78 }}>{header}</div>
 			<div style={{ marginLeft: 12 }}>
 				{quoteLines.length > 5 ? (
 					<details className="readmore">
@@ -188,6 +192,13 @@ function FormatQuote({
 					quoteLines.map(line => <FormatQuoteLine line={line} psUsernameTag={psUsernameTag} />)
 				)}
 			</div>
+			{addedBy && dateAdded && (
+				<>
+					<span style={{ fontSize: 10, opacity: 0.6, marginTop: 6 }}>Added by&nbsp;</span>
+					<UsernamePS name={addedBy} style={{ fontSize: 10 }} clickable />
+					<span style={{ fontSize: 10, opacity: 0.6, marginTop: 6 }}>&nbsp;on {dateAdded}</span>
+				</>
+			)}
 		</>
 	);
 }
@@ -213,7 +224,7 @@ function MultiQuotes({
 	title: baseTitle,
 	showAll = false,
 }: {
-	list: QuoteCollection;
+	list: IndexedQuoteModel[];
 	pageNum: number | null;
 	total: number;
 	command: string | null;
@@ -227,7 +238,16 @@ function MultiQuotes({
 		plural: 'quotes',
 	})}${total > list.length ? ` of ${total} total` : ''})`;
 	const title = baseTitle ? `${baseTitle} ${suffix}` : pageNum ? `Page ${pageNum} of ${pageCount} ${suffix}` : `All Quotes`;
-	const quotes = list.map(([header, quote]) => <FormatQuote quote={quote} header={`#${header}`} />).space(<hr />, !useDropdown);
+	const quotes = list
+		.map(([index, quote]) => {
+			const dateAdded = Temporal.Instant.fromEpochMilliseconds(quote.at.getTime())
+				.toZonedDateTimeISO('UTC')
+				.toPlainDate()
+				.toLocaleString('en-GB');
+
+			return <FormatQuote quote={quote.quote} header={`#${index}`} addedBy={quote.addedBy} dateAdded={dateAdded} />;
+		})
+		.space(<hr />, !useDropdown);
 
 	const content = useDropdown ? (
 		<>
@@ -237,7 +257,7 @@ function MultiQuotes({
 					<h3 style={{ display: 'inline-block' }}>{title}</h3>
 				</summary>
 				<hr />
-				{quotes}
+				<>{quotes}</>
 			</details>
 			<hr />
 		</>
@@ -306,10 +326,15 @@ export const command: PSCommand = {
 				);
 				if (!matchingQuotes.length) return broadcast($T('COMMANDS.QUOTES.NO_QUOTES_FOUND_MATCHING', { search: arg }));
 				const [index, randQuote] = matchingQuotes.random()!;
+				const dateAdded = Temporal.Instant.fromEpochMilliseconds(randQuote.at.getTime())
+					.toZonedDateTimeISO('UTC')
+					.toPlainDate()
+					.toLocaleString('en-GB');
+
 				broadcastHTML(
 					<>
 						<hr />
-						<FormatQuote quote={randQuote.quote} header={`#${+index + 1}`} />
+						<FormatQuote quote={randQuote.quote} header={`#${+index + 1}`} addedBy={randQuote.addedBy} dateAdded={dateAdded} />
 						<hr />
 					</>,
 					{ name: `viewquote-${message.parent.status.userid}` }
@@ -326,17 +351,20 @@ export const command: PSCommand = {
 				'wrapping the username in ``[]`` (eg: ``[14:20:21] • #PartMan hugs Hydro`` would be formatted ' +
 				'as ``[14:20:21] • #[PartMan] hugs Hydro``).',
 			syntax: 'CMD [new quote]',
-			async run({ message, arg, broadcastHTML }) {
+			async run({ message, arg, broadcastHTML, $T }) {
 				const parsedQuote = parseQuote(arg);
-				const rendered = jsxToHTML(<FormatQuote quote={parsedQuote} />);
+				const addedBy = message.author.name;
+				const at = Temporal.Now.plainDateISO('UTC').toLocaleString('en-GB');
+
+				const rendered = jsxToHTML(<FormatQuote quote={parsedQuote} addedBy={addedBy} dateAdded={at} />);
 
 				if (rendered.length > MAX_QUOTE_LENGTH) throw new ChatError('Quote is too long.' as ToTranslate);
-				await addQuote(parsedQuote, message.target.id, message.author.name);
+				await addQuote(parsedQuote, message.target.id, addedBy);
 				const { length } = await getAllQuotes(message.target.id);
 				broadcastHTML(
 					<>
 						<hr />
-						<FormatQuote quote={parsedQuote} header={`Quote #${length} added.`} />
+						<FormatQuote quote={parsedQuote} header={`Quote #${length} added.`} addedBy={addedBy} dateAdded={at} />
 						<hr />
 					</>,
 					{ name: `viewquote-${message.parent.status.userid}` }
@@ -349,7 +377,7 @@ export const command: PSCommand = {
 			perms: (message, check) => (message.type === 'pm' ? true : check('driver')),
 			help: 'Previews the given quote. Syntax is the same as add.',
 			syntax: 'CMD [new quote]',
-			async run({ message, arg, broadcastHTML }) {
+			async run({ message, arg, broadcastHTML, $T }) {
 				const parsedQuote = parseQuote(arg);
 				const { length } = await getAllQuotes(message.target.id);
 				broadcastHTML(
@@ -372,10 +400,10 @@ export const command: PSCommand = {
 				const room: string = await getRoom(givenRoom, message, $T);
 				const quotes = await getAllQuotes(room);
 
-				const foundQuotes: QuoteCollection = searchQuotes(
+				const foundQuotes: IndexedQuoteModel[] = searchQuotes(
 					quotes.map<IndexedQuoteModel>((quote, index) => [index + 1, quote]),
 					arg
-				).map(([index, quote]) => [index, quote.quote]);
+				);
 
 				if (!foundQuotes.length) return broadcast($T('COMMANDS.QUOTES.NO_QUOTES_FOUND'));
 
@@ -402,10 +430,15 @@ export const command: PSCommand = {
 				const quotes = await getAllQuotes(room);
 				if (!quotes.length) return broadcast($T('COMMANDS.QUOTES.NO_QUOTES_FOUND'));
 				const lastQuote = quotes[quotes.length - 1];
+				const dateAdded = Temporal.Instant.fromEpochMilliseconds(lastQuote.at.getTime())
+					.toZonedDateTimeISO('UTC')
+					.toPlainDate()
+					.toLocaleString('en-GB');
+
 				broadcastHTML(
 					<>
 						<hr />
-						<FormatQuote quote={lastQuote.quote} header={`#${quotes.length}`} />
+						<FormatQuote quote={lastQuote.quote} header={`#${quotes.length}`} addedBy={lastQuote.addedBy} dateAdded={dateAdded} />
 						<hr />
 					</>,
 					{ name: `viewquote-${message.parent.status.userid}` }
@@ -426,9 +459,9 @@ export const command: PSCommand = {
 				const pageNum = arg ? parseInt(arg) || 1 : 1;
 				const startIndex = (pageNum - 1) * PAGE_SIZE;
 				const endIndex = startIndex + PAGE_SIZE;
-				const pagedQuotes: QuoteCollection = quotes
+				const pagedQuotes: IndexedQuoteModel[] = quotes
 					.slice(startIndex, endIndex)
-					.map((quote, index) => [startIndex + index + 1, quote.quote]);
+					.map((quote, index) => [startIndex + index + 1, quote]);
 
 				if (!pagedQuotes.length) throw new ChatError('Invalid page number.' as ToTranslate);
 
@@ -457,9 +490,9 @@ export const command: PSCommand = {
 				const pageNum = arg ? parseInt(arg) || 1 : 1;
 				const startIndex = (pageNum - 1) * PAGE_SIZE;
 				const endIndex = startIndex + PAGE_SIZE;
-				const pageQuotes: QuoteCollection = quotes
+				const pageQuotes: IndexedQuoteModel[] = quotes
 					.slice(startIndex, endIndex)
-					.map((quote, index) => [startIndex + index + 1, quote.quote]);
+					.map((quote, index) => [startIndex + index + 1, quote]);
 
 				if (!pageQuotes.length) throw new ChatError('Invalid page number.' as ToTranslate);
 
@@ -527,11 +560,20 @@ export const command: PSCommand = {
 					toDelete = matching[0];
 					indexToDelete = quotes.indexOf(toDelete);
 				}
+				const dateAdded = Temporal.Instant.fromEpochMilliseconds(quotes[indexToDelete].at.getTime())
+					.toZonedDateTimeISO('UTC')
+					.toPlainDate()
+					.toLocaleString('en-GB');
 
 				broadcastHTML(
 					<>
 						<hr />
-						<FormatQuote quote={quotes[indexToDelete].quote} header={`Deleting #${indexToDelete + 1}:`} />
+						<FormatQuote
+							quote={quotes[indexToDelete].quote}
+							header={`Deleting #${indexToDelete + 1}:`}
+							addedBy={quotes[indexToDelete].addedBy}
+							dateAdded={dateAdded}
+						/>
 						<hr />
 					</>
 				);
@@ -580,10 +622,15 @@ export const command: PSCommand = {
 				throw new ChatError('Invalid quote index.' as ToTranslate);
 			}
 			const quote = quotes[index - 1];
+			const dateAdded = Temporal.Instant.fromEpochMilliseconds(quote.at.getTime())
+				.toZonedDateTimeISO('UTC')
+				.toPlainDate()
+				.toLocaleString('en-GB');
+
 			return broadcastHTML(
 				<>
 					<hr />
-					<FormatQuote quote={quote.quote} header={`#${index}`} />
+					<FormatQuote quote={quote.quote} header={`#${index}`} addedBy={quote.addedBy} dateAdded={dateAdded} />
 					<hr />
 				</>,
 				{ name: `viewquote-${message.parent.status.userid}` }
