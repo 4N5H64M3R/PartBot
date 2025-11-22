@@ -479,7 +479,7 @@ export const command: PSCommand = {
 		page: {
 			name: 'page',
 			aliases: ['g'],
-			flags: { routePMs: true, allowPMs: false },
+			flags: { routePMs: true, allowPMs: true },
 			help: 'Sends the user an HTML page of quotes.',
 			syntax: 'CMD [page number?]',
 			async run({ message, arg, broadcast, room: givenRoom, $T }) {
