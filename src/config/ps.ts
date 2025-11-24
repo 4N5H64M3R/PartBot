@@ -11,4 +11,7 @@ export const rooms = process.env.PS_ROOMS?.split(',') || ['botdevelopment'];
 export const prefix = process.env.PREFIX || ',';
 export const avatar = process.env.PS_AVATAR || 'supernerd';
 
+export const server = process.env.PS_SERVER || 'psim.us';
+export const port = process.env.PS_PORT || '443';
+
 export const isGlobalBot = process.env.PS_GLOBAL_BOT === 'true';
