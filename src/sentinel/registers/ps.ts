@@ -1,12 +1,15 @@
 import { promises as fs } from 'fs';
 
 import { IS_ENABLED } from '@/enabled';
+import { LanguageMap } from '@/i18n';
 import { Games } from '@/ps/games';
 import { reloadCommands } from '@/ps/loaders/commands';
 import { LivePSHandlers, LivePSStuff } from '@/sentinel/live';
-import { cachebust } from '@/utils/cachebust';
+import { cachebust, cachebustDir } from '@/utils/cachebust';
+import { emptyObject } from '@/utils/emptyObject';
 import { fsPath } from '@/utils/fsPath';
 
+import type { Language } from '@/i18n';
 import type { GamesList, Meta } from '@/ps/games/types';
 import type { Register } from '@/sentinel/types';
 
@@ -81,6 +84,24 @@ export const PS_REGISTERS: Register[] = IS_ENABLED.PS
 					cachebust('@/ps/handlers/commands');
 					const { commandHandler } = await import('@/ps/handlers/commands');
 					LivePSHandlers.commandHandler = commandHandler;
+				},
+			},
+
+			{
+				label: 'i18n',
+				pattern: /\/i18n\//,
+				reload: async () => {
+					emptyObject(LanguageMap);
+					await cachebustDir(fsPath('i18n', 'languages'));
+					const languages = (await fs.readdir(fsPath('i18n', 'languages')))
+						.filter(file => file.endsWith('.ts'))
+						.map(file => file.replace('.ts', ''));
+					await Promise.all(
+						languages.map(async language => {
+							const { default: dict } = await import(fsPath('i18n', 'languages', language));
+							LanguageMap[language as Language] = dict;
+						})
+					);
 				},
 			},
 
