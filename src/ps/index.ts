@@ -1,6 +1,6 @@
 import { Client } from 'ps-client';
 
-import { avatar, password, rooms, username } from '@/config/ps';
+import { port, server, avatar, password, rooms, username } from '@/config/ps';
 import { IS_ENABLED } from '@/enabled';
 import { registerEvent } from '@/ps/handlers';
 import { startPSCron } from '@/ps/handlers/cron';
