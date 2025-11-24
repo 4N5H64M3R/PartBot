@@ -1,30 +1,18 @@
-import { Client } from 'ps-client';
+import { toId } from '@/utils/toId';
 
-import { port, server, avatar, password, rooms, username } from '@/config/ps';
-import { IS_ENABLED } from '@/enabled';
-import { registerEvent } from '@/ps/handlers';
-import { startPSCron } from '@/ps/handlers/cron';
-import { transformHTML } from '@/ps/handlers/html';
-import loadPS from '@/ps/loaders';
-import { Logger } from '@/utils/logger';
+export const ranks = ['locked', 'muted', 'regular', 'whitelist', 'voice', 'driver', 'mod', 'bot', 'owner', 'admin'] as const;
 
-const PS = new Client({ username, password, rooms, transformHTML, avatar, server, port });
-PS.on('login', () => Logger.log(`Connected to PS! [${username}]`));
+export const owner = process.env.PS_OWNER || 'PartMan';
+const _admins = process.env.PS_ADMINS?.split(/ *, */) || [];
+export const admins = _admins.map(toId);
 
-if (IS_ENABLED.PS) loadPS().then(() => PS.connect());
+export const username = process.env.PS_USERNAME || 'PartBot';
+export const password = process.env.PS_PASSWORD || 'password';
+export const rooms = process.env.PS_ROOMS?.split(',') || ['botdevelopment'];
+export const prefix = process.env.PREFIX || ',';
+export const avatar = process.env.PS_AVATAR || 'supernerd';
 
-PS.on('message', msg => registerEvent(PS, 'commandHandler')(msg));
-PS.on('message', msg => registerEvent(PS, 'interfaceHandler')(msg));
-PS.on('message', msg => registerEvent(PS, 'autoResHandler')(msg));
+export const server = process.env.PS_SERVER || 'psim.us';
+export const port = parseInt(process.env.PS_PORT || '443', 10);
 
-PS.on('join', registerEvent(PS, 'joinHandler'));
-PS.on('joinRoom', registerEvent(PS, 'joinRoomHandler'));
-PS.on('name', registerEvent(PS, 'nickHandler'));
-PS.on('leave', registerEvent(PS, 'leaveHandler'));
-PS.on('notify', registerEvent(PS, 'notifyHandler'));
-PS.on('raw', registerEvent(PS, 'rawHandler'));
-PS.on('tournament', registerEvent(PS, 'tourHandler'));
-
-if (IS_ENABLED.PS) startPSCron.bind(PS)();
-
-export default PS;
+export const isGlobalBot = process.env.PS_GLOBAL_BOT === 'true';
