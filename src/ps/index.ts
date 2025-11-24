@@ -8,7 +8,7 @@ import { transformHTML } from '@/ps/handlers/html';
 import loadPS from '@/ps/loaders';
 import { Logger } from '@/utils/logger';
 
-const PS = new Client({ username, password, rooms, transformHTML, avatar });
+const PS = new Client({ username, password, rooms, transformHTML, avatar, server, port });
 PS.on('login', () => Logger.log(`Connected to PS! [${username}]`));
 
 if (IS_ENABLED.PS) loadPS().then(() => PS.connect());
